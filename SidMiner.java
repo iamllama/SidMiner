@@ -14,11 +14,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.RoundRectangle2D;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.text.DecimalFormat;
 
-import javax.imageio.ImageIO;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -31,7 +29,6 @@ import org.powerbot.concurrent.strategy.Strategy;
 import org.powerbot.game.api.ActiveScript;
 import org.powerbot.game.api.Manifest;
 import org.powerbot.game.api.methods.Calculations;
-import org.powerbot.game.api.methods.Environment;
 import org.powerbot.game.api.methods.Game;
 import org.powerbot.game.api.methods.Tabs;
 import org.powerbot.game.api.methods.Walking;
@@ -55,19 +52,137 @@ import org.powerbot.game.bot.event.MessageEvent;
 import org.powerbot.game.bot.event.listener.MessageListener;
 import org.powerbot.game.bot.event.listener.PaintListener;
 
-@Manifest(authors = { "siidheesh" }, name = "SidMiner", version = 2.0, description = "Advanced RSBot Miner", topic = 4, website = "http://is.gd/qoAkdq", vip = true)
+@Manifest(authors = { "siidheesh" }, name = "SidMiner", version = 2.1, description = "Advanced RSBot Miner", topic = 4, website = "http://is.gd/qoAkdq", vip = true)
 public class SidMiner extends ActiveScript implements PaintListener, MouseListener, MessageListener {
 	
 	public boolean no_ore_in_sight = false;
 	public boolean stop_all = false;
-
+	public boolean ore_not_on_screen = false;
+	public SceneObject selected_ore = null;
+	
+	/*
+	public class rscomm_data {
+		  public String data;
+		  public int ack;
+	}
+	*/
+	/*
+	public interface RSComm {
+			  rscomm_data rscomm(@ParamName("data") String data);
+			  //rscomm_data rscomm_login(@ParamName("user") String username, @ParamName("pass") String password);
+	}
+	*/
+	/*
+	public class RCAccount {
+		
+		protected String username = null;
+		protected String password = null;
+		protected String cryptpass = null;
+		protected ArrayList<Integer> cmdbuf = null;
+		protected int cmdbufindex = 0;
+		protected String responsebuff = null;
+		protected String salt = "tpjc2011";
+		public boolean CommandAvailable = false;
+		protected boolean valid_credentials = false;
+		public String msgkey = null;
+		protected ProxyFactory factory = new ProxyFactory(new PhpFlatProxy());
+		protected RSComm script = factory.createProxy(RSComm.class, "http://dcmd.sidsoftinc.com/sidminer.php");
+		/*
+		ResponseHandler<String> handler = new ResponseHandler<String>() {
+				    public String handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+				        HttpEntity entity = response.getEntity();
+				        if (entity != null) {
+				            return EntityUtils.toString(entity);
+				        } else {
+				            return null;
+				        }
+				    }
+				};
+		public RCAccount(String user, String pass) {
+			this.username = user;
+			this.password = pass;
+		}
+		public String RC_Comm(ArrayList<NameValuePair> params) {
+			try {
+				params.add(new BasicNameValuePair("app", "sidminer"));
+				DefaultHttpClient httpclient = new DefaultHttpClient();
+				UrlEncodedFormEntity entity = new UrlEncodedFormEntity(params, "UTF-8");
+				HttpPost httppost = new HttpPost("http://dcmd.sidsoftinc.com/rs/index.php");
+				httppost.setEntity(entity);
+				responsebuff = httpclient.execute(httppost, handler);
+				log.info("rc post response:"+responsebuff);
+				return responsebuff;
+			} 
+			catch (Exception e) {   
+				e.printStackTrace();
+			}
+			return null;
+		}
+		public void RCPoll() {
+			if (valid_credentials) {
+				ArrayList<NameValuePair> formparams = new ArrayList<NameValuePair>();
+				formparams.add(new BasicNameValuePair("user", username));
+				formparams.add(new BasicNameValuePair("pass", cryptpass));
+				formparams.add(new BasicNameValuePair("cmd", "poll"));
+				RC_Comm(formparams);
+				if(responsebuff.startsWith("cmd:")) {
+					cmdbufindex++;
+					cmdbuf.add((int)responsebuff.charAt(3));
+					CommandAvailable = true;
+				}
+			}
+		}
+		public RCAccount(String user, String pass) {
+			this.username = user;
+			this.password = pass;
+		}
+		public boolean Login() {
+			try {
+				rscomm_data logindata = script.rscomm("user=" + username + "&pass=" + password);
+				if (logindata.data.contains("login successful") && logindata.ack == 1) {
+					valid_credentials = true;
+					cryptpass = password;
+					return true;
+				} else return false;
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+			return false;
+		}
+		public int GetCommand() {
+			if (CommandAvailable) {
+				cmdbufindex--;
+				return cmdbuf.remove(0);
+			} else return -1;
+		}
+		/*
+		public boolean Login() throws InvalidKeyException, NoSuchAlgorithmException {
+			try {
+				ArrayList<NameValuePair> formparams = new ArrayList<NameValuePair>();
+				String crypt = Base64.encodeBase64String(PBKDF2.deriveKey(password.getBytes(), salt.getBytes(), 1000, 32));
+				formparams.add(new BasicNameValuePair("user", username));
+				formparams.add(new BasicNameValuePair("pass", crypt));
+				RC_Comm(formparams);
+				if (responsebuff.contains("login successful")) {
+					valid_credentials = true;
+					cryptpass = crypt;
+					return true;
+				} else return false;
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+			return false;
+		}
+	}
+	*/
+	
 	public void error(final String s) {
 		Toolkit.getDefaultToolkit().beep();
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
                 try {
-                	JOptionPane.showMessageDialog(null, s, "Error!", JOptionPane.WARNING_MESSAGE);
+                	JOptionPane.showMessageDialog(null, s, "Error!", JOptionPane.DEFAULT_OPTION);
                 } catch (Exception e) {
                 	e.printStackTrace();
                 }
@@ -172,25 +287,28 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 			});
 			if (Ore != null) {
 				if (Ore.isOnScreen()) {
+					selected_ore = Ore;
 					Tile targetedOreLoc = Ore.getLocation();
 					int targetedOreID = SceneEntities.getAt(targetedOreLoc).getId(), miningWaitPatience = 0;
 					if (Ore.interact("Mine")) {
 						sweepcheck = 0;
 						no_ore_in_sight = false;
+						ore_not_on_screen = false;
 						status = "Mining " + rockname + "...";
 						while (targetedOreID == SceneEntities.getAt(targetedOreLoc).getId() && miningWaitPatience < 80) {
 							Time.sleep(50, 100);
 							miningWaitPatience++;
 						}
+						selected_ore = null;
 					}
-				}
+				} else ore_not_on_screen = true;
 			} else { //try find for ore further
-				if (sweepcheck > 4 && sweepcheck <= 24) {
-					status = "Scanning area";
-					log.info("scanning area:" + (sweepcheck - 4));
-					Camera.setAngle(Random.nextInt(-359, 359));
-					Camera.setPitch(Random.nextInt(1, 99));
-					Camera.setPitch(Random.nextInt(1, 50));
+				if (sweepcheck > 4 && sweepcheck <= 24 && ore_not_on_screen) {
+						status = "Scanning area";
+						log.info("scanning area:" + (sweepcheck - 4));
+						Camera.setAngle(Random.nextInt(-359, 359));
+						Camera.setPitch(Random.nextInt(1, 99));
+						Camera.setPitch(Random.nextInt(1, 50));
 				} else if (sweepcheck > 24 && sweepcheck <= 50) { //truly no ore within here!!
 					no_ore_in_sight = true;
 					log.info("It's hopeless.... No ore in sight....");
@@ -377,7 +495,7 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 		g.drawPolygon(cursorShape1);
 		//g.setColor(new Color((int) (Math.random() * 255), (int) (Math.random() * 255), (int) (Math.random() * 255)));
 		g.drawPolygon(cursorShape2);
-
+		/*
 		// Draw cursor lines
 		Dimension dimension = Toolkit.getDefaultToolkit().getScreenSize();
 		final Point location = Mouse.getLocation();
@@ -404,9 +522,9 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 			g.drawLine(location.x + 1, 0, location.x + 1, (int) dimension.getHeight());
 			g.drawLine(location.x - 1, 0, location.x - 1, (int) dimension.getHeight());
 		}
+		*/
 	}
 	
-	// Rock IDS
 	public int CopperRockID[] = { 2090, 2091, 2097, 3027, 3229, 5779, 5780, 5781, 9708, 9709, 9710, 11936, 11937, 11938, 11960, 11961, 11962, 14906, 14907, 21284, 21285, 21286 };
 	public int TinRockID[] = { 2094, 2095, 3038, 3245, 5776, 5777, 5778, 9714, 9716, 11933, 11934, 11935, 11957, 11958, 11959, 14902, 14903, 21293, 21294, 21295 };
 	public int IronRockID[] = { 2092, 2093, 5773, 5774, 5775, 9717, 9718, 9719, 11954, 11955, 11956, 14099, 14107, 14913, 14914, 21281, 21282, 21283, 37307, 37308, 37309 };
@@ -430,6 +548,8 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 	public long StartTime = -1;
 	public String status = "";
 
+	//public RCAccount rca = new RCAccount("siidheesh", "dunman");
+	
 	public final DecimalFormat df = new DecimalFormat("###,###,###,###");
 	public final DecimalFormat pf = new DecimalFormat("###.###");
 
@@ -456,11 +576,17 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 		return 1 - currentLvlExp / range;
 	}
 
-	// Message event to compliment ores mined:
 	@Override
 	public void messageReceived(MessageEvent e) {
-		if (e.getMessage().toLowerCase().contains("manage to mine")) {
-			ores++;
+		String message = e.getMessage().toLowerCase();
+		if (message.contains("manage to mine")) {
+			ores++;/*
+		} else if(message.startsWith(rca.msgkey)) {
+			/*
+			String command = message.substring(rca.msgkey.length()); //rca.msgkey length + 1 space
+			switch (command) {
+			
+			}*/
 		}
 	}
 
@@ -528,7 +654,6 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 		if (timer == null) {
 			timer = new Timer(0);
 		}
-
 		final Point loc = new Point(4, 189);
 		final Dimension size = new Dimension(512, 148);
 		final int trigx[] = { 469, 483, 476 };
@@ -539,6 +664,12 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
             //y=loc.y + 126 - 53 + 12
             //x=loc.x + 178 - 176 + 195
             g2.drawString("NO VISIBLE ORE", loc.x + 206, loc.y + 85);
+		}
+		if(selected_ore != null) { //highlight ore :)
+			render.setColor(Color.GREEN);
+            render.drawPolygon(selected_ore.getLocation().getBounds()[0]);
+            //render.setColor(new Color(255, 0, 0, 50));
+            //render.fillPolygon(selected_ore.getLocation().getBounds()[0]);
 		}
 		if (showPaint) {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -697,8 +828,6 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 			g2.drawOval(loc.x + size.width - 19 + 4, loc.y + size.height - 20 + 5, 10, 10);
 			g2.drawRoundRect(loc.x + size.width - 20, loc.y + size.height - 20, 20, 20, 5, 5);
 		}
-
-		// Draw the mouse overlay.
 		drawMouse(render);
 	}
 
@@ -721,28 +850,36 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 		startlvl = Skills.getLevel(Skills.MINING);
 		startxp = Skills.getExperience(Skills.MINING);
 		showPaint = true;
-
+		
 		Drop d1 = new Drop();
 		Strategy drop = new Strategy(d1, d1);
 		Mining m1 = new Mining();
 		Strategy mining = new Strategy(m1, m1);
 		Antiban ab = new Antiban();
 		Strategy antiban = new Strategy(ab, ab);
-		RemoteControl rc = new RemoteControl();
-		Strategy remotecontrol = new Strategy(rc, rc);
+		//RemoteControl rc = new RemoteControl();
+		//Strategy remotecontrol = new Strategy(rc, rc);
 		drop.setSync(true);
 		antiban.setSync(true);
-		remotecontrol.setSync(true);
+		//remotecontrol.setSync(true);
 		provide(drop);
 		provide(mining);
 		provide(antiban);
-		provide(remotecontrol);
+		//provide(remotecontrol);
 		log.info("Initialized. Choose your powermining target.");
+		File conf = new File("conf.sid");
+		if(conf.exists()) {
+			
+		} else {
+			
+		}
 	}
-	
+	/*
 	private class RemoteControl extends Strategy implements Task {
 		public int cmdbuf;
+		@SuppressWarnings("unused")
 		public int reply;
+		@SuppressWarnings("unused")
 		public boolean success;
 		@Override
 		public boolean validate() {
@@ -784,4 +921,79 @@ public class SidMiner extends ActiveScript implements PaintListener, MouseListen
 			//reply with success var
 		}
 	}
+	*/
+	/*
+	public static class PBKDF2
+	{
+	    public static byte[] deriveKey( byte[] password, 
+	                                    byte[] salt, 
+	                                    int iterationCount, 
+	                                    int dkLen )
+	        throws java.security.NoSuchAlgorithmException, 
+	               java.security.InvalidKeyException
+	    {
+	        SecretKeySpec keyspec = new SecretKeySpec( password, "HmacSHA1" );
+	        Mac prf = Mac.getInstance( "HmacSHA1" );
+	        prf.init( keyspec );
+
+	        // Note: hLen, dkLen, l, r, T, F, etc. are horrible names for
+	        //       variables and functions in this day and age, but they
+	        //       reflect the terse symbols used in RFC 2898 to describe
+	        //       the PBKDF2 algorithm, which improves validation of the
+	        //       code vs. the RFC.
+	        //
+	        // dklen is expressed in bytes. (16 for a 128-bit key, 32 for 256)
+
+	        int hLen = prf.getMacLength();   // 20 for SHA1
+	        int l = Math.max( dkLen, hLen); //  1 for 128bit (16-byte) keys
+	        int r = dkLen - (l-1)*hLen;      // 16 for 128bit (16-byte) keys
+	        byte T[] = new byte[l * hLen];
+	        int ti_offset = 0;
+	        for (int i = 1; i <= l; i++) {
+	            F( T, ti_offset, prf, salt, iterationCount, i );
+	            ti_offset += hLen;
+	        }
+
+	        if (r < hLen) {
+	            // Incomplete last block
+	            byte DK[] = new byte[dkLen];
+	            System.arraycopy(T, 0, DK, 0, dkLen);
+	            return DK;
+	        }
+	        return T;
+	    } 
+
+
+	    private static void F( byte[] dest, int offset, Mac prf, byte[] S, int c, int blockIndex ) {
+	        final int hLen = prf.getMacLength();
+	        byte U_r[] = new byte[ hLen ];
+	        // U0 = S || INT (i);
+	        byte U_i[] = new byte[S.length + 4];
+	        System.arraycopy( S, 0, U_i, 0, S.length );
+	        INT( U_i, S.length, blockIndex );
+	        for( int i = 0; i < c; i++ ) {
+	            U_i = prf.doFinal( U_i );
+	            xor( U_r, U_i );
+	        }
+
+	        System.arraycopy( U_r, 0, dest, offset, hLen );
+	    }
+
+	    private static void xor( byte[] dest, byte[] src ) {
+	        for( int i = 0; i < dest.length; i++ ) {
+	            dest[i] ^= src[i];
+	        }
+	    }
+
+	    private static void INT( byte[] dest, int offset, int i ) {
+	        dest[offset + 0] = (byte) (i / (256 * 256 * 256));
+	        dest[offset + 1] = (byte) (i / (256 * 256));
+	        dest[offset + 2] = (byte) (i / (256));
+	        dest[offset + 3] = (byte) (i);
+	    } 
+
+	    // ctor
+	    private PBKDF2 () {}
+	}
+	*/
 }
